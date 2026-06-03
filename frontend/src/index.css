@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090c;--bg2:#111116;--bg3:#18181f;--bg4:#1f1f28;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);
+  --text:#eeeef0;--text2:#8888a0;--text3:#4a4a60;
+  --accent:#5b7fff;--accent2:#4466ee;
+  --green:#22c55e;--green-bg:rgba(34,197,94,0.08);
+  --red:#f43f5e;--red-bg:rgba(244,63,94,0.09);
+  --amber:#f59e0b;--amber-bg:rgba(245,158,11,0.09);
+  --purple:#a78bfa;--purple-bg:rgba(167,139,250,0.09);
+  --teal:#2dd4bf;--teal-bg:rgba(45,212,191,0.09);
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+  --r:8px;--rl:12px;--rxl:16px;--sw:224px;--tr:0.16s ease;
+}
+html,body,#root{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+button{font-family:var(--font);cursor:pointer;border:none;background:none;color:inherit}
+code,pre{font-family:var(--mono)}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:20px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid}
+.badge-red{background:var(--red-bg);border-color:rgba(244,63,94,0.25);color:#fb7185}
+.badge-amber{background:var(--amber-bg);border-color:rgba(245,158,11,0.25);color:#fbbf24}
+.badge-green{background:var(--green-bg);border-color:rgba(34,197,94,0.25);color:#4ade80}
+.badge-blue{background:rgba(91,127,255,0.09);border-color:rgba(91,127,255,0.25);color:#7ca3ff}
+.badge-purple{background:var(--purple-bg);border-color:rgba(167,139,250,0.25);color:#c4b5fd}
+.badge-teal{background:var(--teal-bg);border-color:rgba(45,212,191,0.25);color:#5eead4}
+.btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:7px 14px;border-radius:var(--r);border:1px solid var(--border2);background:var(--bg3);color:var(--text);transition:var(--tr);cursor:pointer}
+.btn:hover{background:var(--bg4)}
+.btn-primary{background:var(--accent);border-color:var(--accent2);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text2)}
+.btn-ghost:hover{background:var(--bg3);color:var(--text)}
+input,select{font-family:var(--font);font-size:13px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:var(--r);padding:8px 12px;outline:none;transition:var(--tr);width:100%}
+input:focus,select:focus{border-color:var(--accent)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.animate-in{animation:fadeIn .28s ease both}
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
