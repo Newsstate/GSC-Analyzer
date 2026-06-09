@@ -1,70 +1,67 @@
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from google_auth_oauthlib.flow import Flow
-from google.oauth2.credentials import Credentials
-import google.auth.transport.requests
-import httpx, os, json, base64
+import httpx, os, json, base64, secrets
 
 router = APIRouter()
 
-SCOPES = [
+SCOPES = " ".join([
     "https://www.googleapis.com/auth/webmasters.readonly",
     "https://www.googleapis.com/auth/userinfo.email",
     "openid"
-]
-
-def get_flow():
-    client_config = {
-        "web": {
-            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
-            "redirect_uris": [os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/callback")],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token"
-        }
-    }
-    flow = Flow.from_client_config(client_config, scopes=SCOPES)
-    flow.redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/callback")
-    return flow
+])
 
 @router.get("/google")
 def google_auth():
-    """Initiate Google OAuth flow."""
-    flow = get_flow()
-    auth_url, state = flow.authorization_url(
-        access_type="offline",
-        include_granted_scopes="true",
-        prompt="consent",
-        # Disable PKCE — required when state is not persisted server-side
-        code_challenge_method=None
+    """Initiate Google OAuth flow — no PKCE, plain server-side flow."""
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/callback")
+    state = secrets.token_urlsafe(16)
+
+    auth_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={client_id}"
+        f"&redirect_uri={redirect_uri}"
+        f"&response_type=code"
+        f"&scope={SCOPES.replace(' ', '%20')}"
+        f"&access_type=offline"
+        f"&prompt=consent"
+        f"&state={state}"
     )
     return {"auth_url": auth_url}
 
 @router.get("/callback")
 async def google_callback(code: str = Query(...), state: str = Query(None)):
-    """Handle Google OAuth callback."""
+    """Handle Google OAuth callback — exchange code for token directly."""
     try:
-        flow = get_flow()
+        redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/callback")
 
-        # Fetch token without code_verifier (no PKCE)
-        flow.fetch_token(
-            code=code,
-            # Explicitly pass no code_verifier to avoid PKCE mismatch
-        )
-        creds = flow.credentials
-
-        # Get user info
         async with httpx.AsyncClient() as client:
-            r = await client.get(
-                "https://www.googleapis.com/oauth2/v2/userinfo",
-                headers={"Authorization": f"Bearer {creds.token}"}
+            # Exchange code for tokens
+            token_resp = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+                    "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code"
+                }
             )
-            user = r.json()
+            tokens = token_resp.json()
+            if "error" in tokens:
+                raise HTTPException(status_code=400, detail=tokens.get("error_description", tokens["error"]))
+
+            # Get user info
+            user_resp = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {tokens['access_token']}"}
+            )
+            user = user_resp.json()
 
         token_data = {
-            "access_token": creds.token,
-            "refresh_token": creds.refresh_token,
+            "access_token": tokens["access_token"],
+            "refresh_token": tokens.get("refresh_token"),
             "client_id": os.getenv("GOOGLE_CLIENT_ID"),
             "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
             "email": user.get("email", ""),
@@ -76,6 +73,8 @@ async def google_callback(code: str = Query(...), state: str = Query(None)):
         encoded = base64.b64encode(json.dumps(token_data).encode()).decode()
         return RedirectResponse(url=f"{frontend_url}/auth/callback?token={encoded}")
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
