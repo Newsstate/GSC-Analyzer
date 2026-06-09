@@ -23,6 +23,10 @@ app.include_router(gsc.router,      prefix="/api/gsc",      tags=["gsc"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(ai.router,       prefix="/api/ai",       tags=["ai"])
 
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0"}
