@@ -227,8 +227,9 @@ def get_sitemaps(token_data: dict, site_url: str) -> list:
         r = service.sitemaps().list(siteUrl=site_url).execute()
         sitemaps = []
         for s in r.get("sitemap", []):
-            errors = sum(e.get("count", "0") != "0" for e in s.get("errors", []))
-            warnings = sum(w.get("count", "0") != "0" for w in s.get("warnings", []))
+            # FIX: sum the actual counts, not just whether they're non-zero
+            errors = sum(int(e.get("count", 0)) for e in s.get("errors", []))
+            warnings = sum(int(w.get("count", 0)) for w in s.get("warnings", []))
             sitemaps.append({
                 "url": s.get("path", ""),
                 "lastSubmitted": s.get("lastSubmitted", ""),
