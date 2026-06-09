@@ -1,10 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 import google.auth.transport.requests
-import httpx, os, json
+import httpx, os, json, base64
 
 router = APIRouter()
 
@@ -32,21 +32,28 @@ def get_flow():
 def google_auth():
     """Initiate Google OAuth flow."""
     flow = get_flow()
-    auth_url, _ = flow.authorization_url(
+    auth_url, state = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
-        prompt="consent"
+        prompt="consent",
+        # Disable PKCE — required when state is not persisted server-side
+        code_challenge_method=None
     )
     return {"auth_url": auth_url}
 
 @router.get("/callback")
-async def google_callback(code: str, state: str = None):
+async def google_callback(code: str = Query(...), state: str = Query(None)):
     """Handle Google OAuth callback."""
     try:
         flow = get_flow()
-        flow.fetch_token(code=code)
+
+        # Fetch token without code_verifier (no PKCE)
+        flow.fetch_token(
+            code=code,
+            # Explicitly pass no code_verifier to avoid PKCE mismatch
+        )
         creds = flow.credentials
-        
+
         # Get user info
         async with httpx.AsyncClient() as client:
             r = await client.get(
@@ -54,7 +61,7 @@ async def google_callback(code: str, state: str = None):
                 headers={"Authorization": f"Bearer {creds.token}"}
             )
             user = r.json()
-        
+
         token_data = {
             "access_token": creds.token,
             "refresh_token": creds.refresh_token,
@@ -64,16 +71,14 @@ async def google_callback(code: str, state: str = None):
             "name": user.get("name", ""),
             "picture": user.get("picture", "")
         }
-        
-        # Redirect to frontend with token
+
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-        token_str = json.dumps(token_data)
-        import base64
-        encoded = base64.b64encode(token_str.encode()).decode()
+        encoded = base64.b64encode(json.dumps(token_data).encode()).decode()
         return RedirectResponse(url=f"{frontend_url}/auth/callback?token={encoded}")
-    
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 class TokenRefreshRequest(BaseModel):
     refresh_token: str
